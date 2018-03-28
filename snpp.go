@@ -3,12 +3,19 @@ package snpp
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"net"
 	"strings"
 	"time"
 )
+
+var ErrFailedConnection = errors.New("SNPP Gateway did not accept connection")
+var ErrRejectedPhone = errors.New("SNPP Gateway did not accept pager number")
+var ErrRejectedMessage = errors.New("SNPP Gateway did not accept message")
+var ErrFailedSend = errors.New("SNPP Gateway did not send message")
+var ErrForceQuit = errors.New("SNPP Gateway did not close remote connection")
 
 func read(conn net.Conn) (string, error) {
 	// These gateways can be slow - so set a 30 second timeout
@@ -74,7 +81,7 @@ func SendPage(address string, port uint64, number string, message string) error 
 		return readErr
 	}
 	if !strings.HasPrefix(msg, "220") {
-		return fmt.Errorf("SNPP Gateway did not accept connection")
+		return ErrFailedConnection
 	}
 
 	if writeErr := write(conn, fmt.Sprintf("PAGE %s \r\n", number)); writeErr != nil {
@@ -85,7 +92,7 @@ func SendPage(address string, port uint64, number string, message string) error 
 		return readErr
 	}
 	if !strings.HasPrefix(msg, "250") {
-		return fmt.Errorf("SNPP Gateway did not accept pager number")
+		return ErrRejectedPhone
 	}
 
 	if writeErr := write(conn, fmt.Sprintf("MESS %s \r\n", message)); writeErr != nil {
@@ -96,7 +103,7 @@ func SendPage(address string, port uint64, number string, message string) error 
 		return readErr
 	}
 	if !strings.HasPrefix(msg, "250") {
-		return fmt.Errorf("SNPP Gateway did not accept message")
+		return ErrRejectedMessage
 	}
 
 	if writeErr := write(conn, "SEND \r\n"); writeErr != nil {
@@ -107,7 +114,7 @@ func SendPage(address string, port uint64, number string, message string) error 
 		return readErr
 	}
 	if !strings.HasPrefix(msg, "250") {
-		return fmt.Errorf("SNPP Gateway did not send message")
+		return ErrFailedSend
 	}
 
 	if writeErr := write(conn, "QUIT \r\n"); writeErr != nil {
@@ -118,7 +125,7 @@ func SendPage(address string, port uint64, number string, message string) error 
 		return readErr
 	}
 	if !strings.HasPrefix(msg, "221") {
-		return fmt.Errorf("SNPP Gateway did not close remote connection")
+		return ErrForceQuit
 	}
 
 	return nil
