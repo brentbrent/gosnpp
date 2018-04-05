@@ -34,10 +34,13 @@ func read(conn net.Conn) (string, error) {
 
 		bigBuffer.Write(readBuf[:n])
 
-		// Messages end with a Carriage Return and a New Line
-		if readBuf[n-2] == 13 && readBuf[n-1] == 10 {
-			break
-		}
+        // Check for at least 2 bytes in the response. Some snpp portals (e.g. AT&T) send the first byte by itself followed by the rest of the message. Weird.
+        if n > 1 {
+          // Messages end with a Carriage Return and a New Line
+          if readBuf[n-2] == 13 && readBuf[n-1] == 10 {
+            break
+          }
+        }
 	}
 
 	return bigBuffer.String(), nil
